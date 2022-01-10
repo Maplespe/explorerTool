@@ -1,1 +1,1 @@
-"%~dp0ToolLoader.exe" load_s
+"%~dp0MToolLoader.exe" load_s
