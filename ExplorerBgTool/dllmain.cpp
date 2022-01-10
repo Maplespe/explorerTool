@@ -1,4 +1,4 @@
-﻿/*
+/*
 * 文件资源管理器背景工具扩展
 * 
 * Author: Maple
@@ -66,18 +66,22 @@ bool Random = true;//随机显示图片 Random pictures
 
 #pragma endregion
 
+extern bool InjectionEntryPoint();
+
 BOOL APIENTRY DllMain( HMODULE hModule,
                        DWORD  ul_reason_for_call,
                        LPVOID lpReserved
                      )
 {
-    g_hModule = hModule;
-    DisableThreadLibraryCalls(hModule);
+    if (!g_hModule) {
+        g_hModule = hModule;
+        DisableThreadLibraryCalls(hModule);
+        InjectionEntryPoint();
+    }
     return TRUE;
 }
 
-//Hook入口点 EasyHook EntryPoint
-extern "C" __declspec(dllexport) bool __stdcall InjectionEntryPoint()
+bool InjectionEntryPoint()
 {
     //初始化 Gdiplus Init GdiPlus
     GdiplusStartupInput StartupInput;
