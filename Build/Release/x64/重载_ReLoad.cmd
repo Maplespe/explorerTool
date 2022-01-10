@@ -1,2 +1,2 @@
-"%~dp0ToolLoader.exe" reload
+"%~dp0MToolLoader.exe" reload
 pause
