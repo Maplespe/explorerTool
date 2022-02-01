@@ -1,4 +1,4 @@
-﻿/*
+/*
 * 文件资源管理器背景工具扩展
 * 
 * Author: Maple
@@ -39,6 +39,7 @@ struct MyData
 #pragma region GlobalVariable
 
 HMODULE g_hModule = NULL; // 全局模块句柄 Global module handle
+bool m_isInitHook = false;
 
 ULONG_PTR m_gdiplusToken; // GDI初始化标志 GDI Init flag
 
@@ -89,26 +90,6 @@ bool InjectionEntryPoint()
     //设置随机数种子
     srand((int)time(0));
 
-    //创建钩子 CreateHook
-    if (MH_Initialize() == MH_OK)
-    {
-        CreateMHook(CreateWindowExW, MyCreateWindowExW, _CreateWindowExW_, 1);
-        CreateMHook(DestroyWindow, MyDestroyWindow, _DestroyWindow_, 2);
-        CreateMHook(BeginPaint, MyBeginPaint, _BeginPaint_, 3);
-        CreateMHook(FillRect, MyFillRect, _FillRect_, 4);
-        CreateMHook(CreateCompatibleDC, MyCreateCompatibleDC, _CreateCompatibleDC_, 5);
-        /*MH_EnableHook(&CreateWindowExW);
-        MH_EnableHook(&DestroyWindow);
-        MH_EnableHook(&BeginPaint);
-        MH_EnableHook(&FillRect);
-        MH_EnableHook(&CreateCompatibleDC);*/
-        MH_EnableHook(MH_ALL_HOOKS);
-    }
-    else
-    {
-        MessageBoxW(0, L"Failed to initialize disassembly!\nSuspected duplicate load extension", L"MTweaker Error", MB_ICONERROR | MB_OK);
-        FreeLibraryAndExitThread(g_hModule, 0);
-    }
     return true;
 }
 
@@ -183,6 +164,29 @@ void LoadSettings(bool loadimg)
 */
 void OnWindowLoad()
 {
+    //如果按住ESC键则不加载扩展
+    if (GetKeyState(VK_ESCAPE) < 0)
+        return;
+    //在开机的时候系统就会加载此动态库 那时候启用HOOK是会失败的 等创建窗口的时候再初始化HOOK
+    if (!m_isInitHook)
+    {
+        //创建钩子 CreateHook
+        if (MH_Initialize() == MH_OK)
+        {
+            CreateMHook(CreateWindowExW, MyCreateWindowExW, _CreateWindowExW_, 1);
+            CreateMHook(DestroyWindow, MyDestroyWindow, _DestroyWindow_, 2);
+            CreateMHook(BeginPaint, MyBeginPaint, _BeginPaint_, 3);
+            CreateMHook(FillRect, MyFillRect, _FillRect_, 4);
+            CreateMHook(CreateCompatibleDC, MyCreateCompatibleDC, _CreateCompatibleDC_, 5);
+            MH_EnableHook(MH_ALL_HOOKS);
+        }
+        else
+        {
+            MessageBoxW(0, L"Failed to initialize disassembly!\nSuspected duplicate load extension", L"MTweaker Error", MB_ICONERROR | MB_OK);
+            FreeLibraryAndExitThread(g_hModule, 0);
+        }
+        m_isInitHook = true;
+    }
     LoadSettings(true);
 }
 
