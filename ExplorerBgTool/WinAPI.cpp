@@ -1,5 +1,5 @@
 /*
-* WinAPI声明
+* WinAPI澹版槑
 *
 * Author: Maple
 * date: 2021-7-13 Create
@@ -81,9 +81,9 @@ std::wstring GetIniString(std::wstring FilePath, std::wstring AppName, std::wstr
 
 void EnumFiles(std::wstring path, std::wstring append, std::vector<std::wstring>& fileList)
 {
-	//文件句柄 
+	//鏂囦欢鍙ユ焺 
 	intptr_t  hFile = 0;
-	//文件信息 
+	//鏂囦欢淇℃伅 
 	struct _wfinddata_t fileinfo;
 	std::wstring p;
 	if ((hFile = _wfindfirst(p.assign(path).append(L"\\" + append).c_str(), &fileinfo)) != -1)
@@ -103,27 +103,32 @@ void EnumFiles(std::wstring path, std::wstring append, std::vector<std::wstring>
 
 BitmapGDI::BitmapGDI(std::wstring path)
 {
-	//这样加载是为了防止文件被占用
+	//杩欐牱鍔犺浇鏄负浜嗛槻姝㈡枃浠惰鍗犵敤
 	FILE* file = nullptr;
 	_wfopen_s(&file, path.c_str(), L"rb");
-	fseek(file, 0L, SEEK_END);
-	long len = ftell(file);
-	rewind(file);
-	BYTE* pdata = new BYTE[len];
-	fread(pdata, 1, len, file);
-	fclose(file);
+	if (file) {
+		fseek(file, 0L, SEEK_END);
+		long len = ftell(file);
+		rewind(file);
+		BYTE* pdata = new BYTE[len];
+		fread(pdata, 1, len, file);
+		fclose(file);
 
-	HDC hMemDC = CreateCompatibleDC(0);
-	IStream* stream = SHCreateMemStream(pdata, len);
-	delete[] pdata;
+		IStream* stream = SHCreateMemStream(pdata, len);
+		delete[] pdata;
 
-	src = new Gdiplus::Bitmap(stream);
-	pMem = hMemDC;
-	Size = { (LONG)src->GetWidth(), (LONG)src->GetHeight() };
-	src->GetHBITMAP(0, &pBmp);
-	SelectObject(hMemDC, pBmp);
+		src = Gdiplus::Bitmap::FromStream(stream);
+		if (src) {
+			pMem = CreateCompatibleDC(0);
+			Size = { (LONG)src->GetWidth(), (LONG)src->GetHeight() };
+			src->GetHBITMAP(0, &pBmp);
+			SelectObject(pMem, pBmp);
 
-	stream->Release();
+			stream->Release();
+		}
+		else if (stream)
+			stream->Release();
+	}
 }
 
 BitmapGDI::~BitmapGDI()
