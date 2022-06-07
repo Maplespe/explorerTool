@@ -7,18 +7,17 @@
 */
 #include <string>
 #include <vector>
-#include <mutex>
+#include <unordered_map>
+#include <algorithm>
+#include <time.h>
 
 //GDI 相关 Using GDI
 #include <comdef.h>
 #include <gdiplus.h>
 #pragma comment(lib, "GdiPlus.lib")
-//
-//minihook
+
 #include "MinHook.h"
-
 #include "ShellLoader.h"
-
 #include "WinAPI.h"
 #include "HookDef.h"
 
@@ -27,6 +26,14 @@
 
 using namespace Gdiplus;
 
+//全局变量
+#pragma region GlobalVariable
+
+HMODULE g_hModule = NULL;           //全局模块句柄 Global module handle
+bool m_isInitHook = false;          //Hook初始化标志 Hook init flag
+
+ULONG_PTR m_gdiplusToken;           //GDI初始化标志 GDI Init flag
+
 struct MyData
 {
     HWND hWnd = 0;
@@ -34,34 +41,26 @@ struct MyData
     SIZE size = { 0,0 };
     int ImgIndex = 0;
 };
+//First ThreadID
+std::unordered_map<DWORD, MyData> m_duiList;//dui句柄列表 dui handle list
 
-//全局变量
-#pragma region GlobalVariable
-
-HMODULE g_hModule = NULL; // 全局模块句柄 Global module handle
-bool m_isInitHook = false;
-
-ULONG_PTR m_gdiplusToken; // GDI初始化标志 GDI Init flag
-
-std::vector<BitmapGDI*> m_pBgBmp; // 背景图
-
-std::vector<MyData> m_DUIList;//dui句柄列表 dui handle list
-
-/* 0 = Left top
-*  1 = Right top
-*  2 = Left bottom
-*  3 = Right bottom
-*/
-int m_ImgPosMode = 0;//图片定位方式 Image position mode type
-bool m_Random = true;//随机显示图片 Random pictures
-BYTE m_alpha = 255;//图片透明度
-
-std::mutex m_mx;
+struct Config
+{
+    /* 0 = Left top
+    *  1 = Right top
+    *  2 = Left bottom
+    *  3 = Right bottom
+    */
+    int imgPosMode = 0;                 //图片定位方式 Image position mode type
+    bool isRandom = true;               //随机显示图片 Random pictures
+    BYTE imgAlpha = 255;                //图片透明度 Image alpha
+    std::vector<BitmapGDI*> imageList;  //背景图列表 background image list
+} m_config;                             //配置信息 config
 
 #pragma endregion
 
-extern bool InjectionEntryPoint();//注入入口点
-extern void LoadSettings(bool loadimg);//加载dll设置
+extern bool InjectionEntryPoint();      //注入入口点
+extern void LoadSettings(bool loadimg); //加载dll设置
 
 BOOL APIENTRY DllMain( HMODULE hModule,
                        DWORD  ul_reason_for_call,
@@ -71,21 +70,27 @@ BOOL APIENTRY DllMain( HMODULE hModule,
     if (ul_reason_for_call == DLL_PROCESS_ATTACH && !g_hModule) {
         g_hModule = hModule;
         DisableThreadLibraryCalls(hModule);
+
         //防止别的程序意外加载
         wchar_t pName[MAX_PATH];
         GetModuleFileNameW(NULL, pName, MAX_PATH);
+
+        //进程名转小写
         std::wstring path = std::wstring(pName);
-        if (path.substr(path.length() - 12, path.length()) == L"explorer.exe")
+        std::wstring name = path.substr(path.length() - 12, 12);
+        std::transform(name.begin(), name.end(), name.begin(), ::tolower);
+
+        if (name == L"explorer.exe")
             InjectionEntryPoint();
     }
     else if (ul_reason_for_call == DLL_PROCESS_DETACH)
     {
-        for (auto& bmp : m_pBgBmp)
+        for (auto& bmp : m_config.imageList)
         {
             delete bmp;
         }
-        m_pBgBmp.clear();
-        m_DUIList.clear();
+        m_config.imageList.clear();
+        m_duiList.clear();
     }
     return TRUE;
 }
@@ -100,36 +105,37 @@ bool InjectionEntryPoint()
 
 void LoadSettings(bool loadimg)
 {
-    std::lock_guard<std::mutex> lock(m_mx);
 
     //释放旧资源
     if (loadimg) {
-        for (auto& pBmp : m_pBgBmp)
+        for (auto& pBmp : m_config.imageList)
         {
             delete pBmp;
         }
-        m_pBgBmp.clear();
+        m_config.imageList.clear();
     }
 
     //加载配置 Load config
     std::wstring cfgPath = GetCurDllDir() + L"\\config.ini";
-    m_Random = GetIniString(cfgPath, L"image", L"random") == L"true" ? true : false;
+    m_config.isRandom = GetIniString(cfgPath, L"image", L"random") == L"true" ? true : false;
+
     //图片定位方式
     std::wstring str = GetIniString(cfgPath, L"image", L"posType");
     if (str == L"") str = L"0";
-    m_ImgPosMode = std::stoi(str);
-    if (m_ImgPosMode < 0 || m_ImgPosMode > 3)
-        m_ImgPosMode = 0;
+    m_config.imgPosMode = std::stoi(str);
+    if (m_config.imgPosMode < 0 || m_config.imgPosMode > 4)
+        m_config.imgPosMode = 0;
+
     //图片透明度
     str = GetIniString(cfgPath, L"image", L"imgAlpha");
     if (str == L"")
-        m_alpha = 255;
+        m_config.imgAlpha = 255;
     else
     {
         int alpha = std::stoi(str);
         if (alpha > 255) alpha = 255;
         if (alpha < 0) alpha = 0;
-        m_alpha = (BYTE)alpha;
+        m_config.imgAlpha = (BYTE)alpha;
     }
 
     //加载图像 Load Image
@@ -150,13 +156,14 @@ void LoadSettings(bool loadimg)
             {
                 BitmapGDI* bmp = new BitmapGDI(fileList[i]);
                 if (bmp->src)
-                    m_pBgBmp.push_back(bmp);
+                    m_config.imageList.push_back(bmp);
                 else
                     delete bmp;//图片加载失败 load failed
+
                 /*非随机 只加载一张
                 * Load only one image non randomly
                 */
-                if (!m_Random) break;
+                if (!m_config.isRandom) break;
             }
         }
         else {
@@ -175,6 +182,7 @@ void OnWindowLoad()
     //如果按住ESC键则不加载扩展
     if (GetKeyState(VK_ESCAPE) < 0)
         return;
+
     //在开机的时候系统就会加载此动态库 那时候启用HOOK是会失败的 等创建窗口的时候再初始化HOOK
     if (!m_isInitHook)
     {
@@ -237,11 +245,12 @@ HWND MyCreateWindowExW(
             //记录到列表中 Add to list
             MyData data;
             data.hWnd = hWnd;
-            if (m_Random && m_pBgBmp.size())
+            auto imgSize = m_config.imageList.size();
+            if (m_config.isRandom && imgSize)
             {
-                data.ImgIndex = rand() % m_pBgBmp.size();
+                data.ImgIndex = rand() % imgSize;
             }
-            m_DUIList.push_back(data);
+            m_duiList[GetCurrentThreadId()] = data;
         }
     }
     return hWnd;
@@ -250,14 +259,11 @@ HWND MyCreateWindowExW(
 BOOL MyDestroyWindow(HWND hWnd)
 {
     //查找并删除列表中的记录 Find and remove from list
-    for (size_t i = 0; i < m_DUIList.size(); i++)
+    auto iter = m_duiList.find(GetCurrentThreadId());
+    if (iter != m_duiList.end())
     {
-        if (m_DUIList[i].hWnd == hWnd)
-        {
-            //ReleaseDC(hWnd, DUIList[i].second);
-            m_DUIList.erase(m_DUIList.begin() + i);
-            break;
-        }
+        if (iter->second.hWnd == hWnd)
+            m_duiList.erase(iter);
     }
     return _DestroyWindow_(hWnd);
 }
@@ -266,14 +272,15 @@ HDC MyBeginPaint(HWND hWnd, LPPAINTSTRUCT lpPaint)
 {
     //开始绘制DUI窗口 BeginPaint dui window
     HDC hDC = _BeginPaint_(hWnd, lpPaint);
-    for (auto& ui : m_DUIList)
-    {
-        if (ui.hWnd == hWnd)
+
+    auto iter = m_duiList.find(GetCurrentThreadId());
+
+    if (iter != m_duiList.end()) {
+        if (iter->second.hWnd == hWnd)
         {
             //Log(L"Begin");
             //记录到列表 Record values to list
-            ui.hDC = hDC;
-            break;
+            iter->second.hDC = hDC;
         }
     }
     return hDC;
@@ -282,31 +289,33 @@ HDC MyBeginPaint(HWND hWnd, LPPAINTSTRUCT lpPaint)
 int MyFillRect(HDC hDC, const RECT* lprc, HBRUSH hbr)
 {
     int ret = _FillRect_(hDC, lprc, hbr);
-    for (auto& ui : m_DUIList)
-    {
-        if (ui.hDC == hDC && m_pBgBmp.size())
+
+    auto iter = m_duiList.find(GetCurrentThreadId());
+    if (iter != m_duiList.end()) {
+        if (iter->second.hDC == hDC && m_config.imageList.size())
         {
-            int size[2] = { lprc->right - lprc->left, lprc->bottom - lprc->top };
             RECT pRc;
-            GetWindowRect(ui.hWnd, &pRc);
+            GetWindowRect(iter->second.hWnd, &pRc);
             SIZE wndSize = { pRc.right - pRc.left, pRc.bottom - pRc.top };
 
             /*因图片定位方式不同 如果窗口大小改变 需要全体重绘 否则有残留
             * Due to different image positioning methods,
             * if the window size changes, you need to redraw, otherwise there will be residues*/
-            if ((ui.size.cx != wndSize.cx
-                || ui.size.cy != wndSize.cy) && m_ImgPosMode != 0)
-                InvalidateRect(ui.hWnd, 0, TRUE);
+            if ((iter->second.size.cx != wndSize.cx || iter->second.size.cy != wndSize.cy)
+                && m_config.imgPosMode != 0) {
+                InvalidateRect(iter->second.hWnd, 0, TRUE);
+            }
 
-            /*裁剪矩形 Clip rect*/
+            //裁剪矩形 Clip rect
             SaveDC(hDC);
             IntersectClipRect(hDC, lprc->left, lprc->top, lprc->right, lprc->bottom);
 
-            BitmapGDI* pBgBmp = m_pBgBmp[ui.ImgIndex];
+            BitmapGDI* pBgBmp = m_config.imageList[iter->second.ImgIndex];
 
             //计算图片位置 Calculate picture position
             POINT pos;
-            switch (m_ImgPosMode)
+            SIZE dstSize = { pBgBmp->Size.cx, pBgBmp->Size.cy };
+            switch (m_config.imgPosMode)
             {
             case 0:
                 pos = { 0, 0 };
@@ -323,20 +332,52 @@ int MyFillRect(HDC hDC, const RECT* lprc, HBRUSH hbr)
                 pos.x = wndSize.cx - pBgBmp->Size.cx;
                 pos.y = wndSize.cy - pBgBmp->Size.cy;
                 break;
+            case 4:
+                {
+                    static auto calcAspectRatio = [](int fromWidth, int fromHeight, int toWidthOrHeight, bool isWidth)
+                    {
+                        if (isWidth) {
+                            return (int)round(((float)fromHeight * ((float)toWidthOrHeight / (float)fromWidth)));
+                        }
+                        else {
+                            return (int)round(((float)fromWidth * ((float)toWidthOrHeight / (float)fromHeight)));
+                        }
+                    };
+
+                    //按高等比例拉伸
+                    int newWidth = calcAspectRatio(pBgBmp->Size.cx, pBgBmp->Size.cy, wndSize.cy, false);
+                    int newHeight = wndSize.cy;
+
+                    pos.x = newWidth - wndSize.cx;
+                    pos.x /= 2;//居中
+                    if (pos.x != 0) pos.x = -pos.x;
+                    pos.y = 0;
+
+                    //按高不足以填充宽 按宽
+                    if (newWidth < wndSize.cx) {
+                        newWidth = wndSize.cx;
+                        newHeight = calcAspectRatio(pBgBmp->Size.cx, pBgBmp->Size.cy, wndSize.cx, true);
+                        pos.x = 0;
+                        pos.y = newHeight - wndSize.cy;
+                        pos.y /= 2;//居中
+                        if (pos.y != 0) pos.y = -pos.y;
+                    }
+                    dstSize = { newWidth, newHeight };
+                    break;
+                }
             default:
                 break;
             }
 
             /*绘制图片 Paint image*/
-            BLENDFUNCTION bf = { AC_SRC_OVER, 0, m_alpha, AC_SRC_ALPHA };
-            AlphaBlend(hDC, pos.x, pos.y, pBgBmp->Size.cx, pBgBmp->Size.cy, pBgBmp->pMem, 0, 0, pBgBmp->Size.cx, pBgBmp->Size.cy, bf);
+            BLENDFUNCTION bf = { AC_SRC_OVER, 0, m_config.imgAlpha, AC_SRC_ALPHA };
+            AlphaBlend(hDC, pos.x, pos.y, dstSize.cx, dstSize.cy, pBgBmp->pMem, 0, 0, pBgBmp->Size.cx, pBgBmp->Size.cy, bf);
 
             RestoreDC(hDC, -1);
 
-            ui.size = wndSize;
+            iter->second.size = wndSize;
 
             //Log(L"DrawImage");
-            break;
         }
     }
     return ret;
@@ -347,13 +388,11 @@ HDC MyCreateCompatibleDC(HDC hDC)
     //在绘制DUI之前 会调用CreateCompatibleDC 找到它
     //CreateCompatibleDC is called before drawing the DUI
     HDC retDC = _CreateCompatibleDC_(hDC);
-    for (auto& ui : m_DUIList)
-    {
-        if (ui.hDC == hDC)
-        {
-            ui.hDC = retDC;
-            break;
-        }
+
+    auto iter = m_duiList.find(GetCurrentThreadId());
+    if (iter != m_duiList.end()) {
+        if (iter->second.hDC == hDC)
+            iter->second.hDC = retDC;
     }
     return retDC;
 }
