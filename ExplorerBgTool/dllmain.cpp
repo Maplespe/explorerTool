@@ -123,8 +123,8 @@ void LoadSettings(bool loadimg)
     std::wstring str = GetIniString(cfgPath, L"image", L"posType");
     if (str == L"") str = L"0";
     m_config.imgPosMode = std::stoi(str);
-    if (m_config.imgPosMode < 0 || m_config.imgPosMode > 4)
-        m_config.imgPosMode = 0;
+    if (m_config.imgPosMode < 0 || m_config.imgPosMode > 6)
+        m_config.imgPosMode = 3;
 
     //图片透明度
     str = GetIniString(cfgPath, L"image", L"imgAlpha");
@@ -332,7 +332,30 @@ int MyFillRect(HDC hDC, const RECT* lprc, HBRUSH hbr)
                 pos.x = wndSize.cx - pBgBmp->Size.cx;
                 pos.y = wndSize.cy - pBgBmp->Size.cy;
                 break;
-            case 4://拉伸並填充
+            case 4://居中正常顯示
+                pos.x = (wndSize.cx - pBgBmp->Size.cx) >> 1;
+                pos.y = (wndSize.cy - pBgBmp->Size.cy) >> 1;
+                break;
+            case 5://隻有拉伸
+                static auto calcAspectRatio = [](int fromWidth, int fromHeight, int toWidthOrHeight, bool isWidth)
+                {
+                    if (isWidth) {
+                        return (int)round(((float)fromHeight * ((float)toWidthOrHeight / (float)fromWidth)));
+                    }
+                    else {
+                        return (int)round(((float)fromWidth * ((float)toWidthOrHeight / (float)fromHeight)));
+                    }
+                };
+
+                //直接拉伸
+                int newWidth = wndSize.cx;
+                int newHeight = wndSize.cy;
+                pos.x = 0;
+                pos.y = 0;
+
+                dstSize = { newWidth, newHeight };
+                break;
+            case 6://拉伸並填充
                 static auto calcAspectRatio = [](int fromWidth, int fromHeight, int toWidthOrHeight, bool isWidth)
                 {
                     if (isWidth) {
@@ -361,25 +384,6 @@ int MyFillRect(HDC hDC, const RECT* lprc, HBRUSH hbr)
                     pos.y /= 2;//居中
                     if (pos.y != 0) pos.y = -pos.y;
                 }
-                dstSize = { newWidth, newHeight };
-                break;
-            case 5://隻有拉伸
-                static auto calcAspectRatio = [](int fromWidth, int fromHeight, int toWidthOrHeight, bool isWidth)
-                {
-                    if (isWidth) {
-                        return (int)round(((float)fromHeight * ((float)toWidthOrHeight / (float)fromWidth)));
-                    }
-                    else {
-                        return (int)round(((float)fromWidth * ((float)toWidthOrHeight / (float)fromHeight)));
-                    }
-                };
-
-                //直接拉伸
-                int newWidth = wndSize.cx;
-                int newHeight = wndSize.cy;
-                pos.x = 0;
-                pos.y = 0;
-
                 dstSize = { newWidth, newHeight };
                 break;
             default://默認右下
