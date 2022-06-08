@@ -148,7 +148,7 @@ void LoadSettings(bool loadimg)
             EnumFiles(imgPath, L"*.jpg", fileList);
 
             if (fileList.size() == 0) {
-                MessageBoxW(0, L"文件资源管理器背景目录没有文件，因此扩展不会有任何效果.", L"缺少图片目录", MB_ICONERROR);
+                MessageBoxW(0, L"文件资源管理器背景目录没有文件，因此扩展不会有任何效果.", L"缺少图片文件", MB_ICONERROR);
                 return;
             }
 
@@ -317,55 +317,74 @@ int MyFillRect(HDC hDC, const RECT* lprc, HBRUSH hbr)
             SIZE dstSize = { pBgBmp->Size.cx, pBgBmp->Size.cy };
             switch (m_config.imgPosMode)
             {
-            case 0:
+            case 0://左上
                 pos = { 0, 0 };
                 break;
-            case 1:
+            case 1://右上
                 pos.x = wndSize.cx - pBgBmp->Size.cx;
                 pos.y = 0;
                 break;
-            case 2:
+            case 2://左下
                 pos.x = 0;
                 pos.y = wndSize.cy - pBgBmp->Size.cy;
                 break;
-            case 3:
+            case 3://右下
                 pos.x = wndSize.cx - pBgBmp->Size.cx;
                 pos.y = wndSize.cy - pBgBmp->Size.cy;
                 break;
-            case 4:
+            case 4://拉伸並填充
+                static auto calcAspectRatio = [](int fromWidth, int fromHeight, int toWidthOrHeight, bool isWidth)
                 {
-                    static auto calcAspectRatio = [](int fromWidth, int fromHeight, int toWidthOrHeight, bool isWidth)
-                    {
-                        if (isWidth) {
-                            return (int)round(((float)fromHeight * ((float)toWidthOrHeight / (float)fromWidth)));
-                        }
-                        else {
-                            return (int)round(((float)fromWidth * ((float)toWidthOrHeight / (float)fromHeight)));
-                        }
-                    };
-
-                    //按高等比例拉伸
-                    int newWidth = calcAspectRatio(pBgBmp->Size.cx, pBgBmp->Size.cy, wndSize.cy, false);
-                    int newHeight = wndSize.cy;
-
-                    pos.x = newWidth - wndSize.cx;
-                    pos.x /= 2;//居中
-                    if (pos.x != 0) pos.x = -pos.x;
-                    pos.y = 0;
-
-                    //按高不足以填充宽 按宽
-                    if (newWidth < wndSize.cx) {
-                        newWidth = wndSize.cx;
-                        newHeight = calcAspectRatio(pBgBmp->Size.cx, pBgBmp->Size.cy, wndSize.cx, true);
-                        pos.x = 0;
-                        pos.y = newHeight - wndSize.cy;
-                        pos.y /= 2;//居中
-                        if (pos.y != 0) pos.y = -pos.y;
+                    if (isWidth) {
+                        return (int)round(((float)fromHeight * ((float)toWidthOrHeight / (float)fromWidth)));
                     }
-                    dstSize = { newWidth, newHeight };
-                    break;
+                    else {
+                        return (int)round(((float)fromWidth * ((float)toWidthOrHeight / (float)fromHeight)));
+                    }
+                };
+
+                //按高等比例拉伸
+                int newWidth = calcAspectRatio(pBgBmp->Size.cx, pBgBmp->Size.cy, wndSize.cy, false);
+                int newHeight = wndSize.cy;
+
+                pos.x = newWidth - wndSize.cx;
+                pos.x /= 2;//居中
+                if (pos.x != 0) pos.x = -pos.x;
+                pos.y = 0;
+
+                //按高不足以填充宽 按宽
+                if (newWidth < wndSize.cx) {
+                    newWidth = wndSize.cx;
+                    newHeight = calcAspectRatio(pBgBmp->Size.cx, pBgBmp->Size.cy, wndSize.cx, true);
+                    pos.x = 0;
+                    pos.y = newHeight - wndSize.cy;
+                    pos.y /= 2;//居中
+                    if (pos.y != 0) pos.y = -pos.y;
                 }
-            default:
+                dstSize = { newWidth, newHeight };
+                break;
+            case 5://隻有拉伸
+                static auto calcAspectRatio = [](int fromWidth, int fromHeight, int toWidthOrHeight, bool isWidth)
+                {
+                    if (isWidth) {
+                        return (int)round(((float)fromHeight * ((float)toWidthOrHeight / (float)fromWidth)));
+                    }
+                    else {
+                        return (int)round(((float)fromWidth * ((float)toWidthOrHeight / (float)fromHeight)));
+                    }
+                };
+
+                //直接拉伸
+                int newWidth = wndSize.cx;
+                int newHeight = wndSize.cy;
+                pos.x = 0;
+                pos.y = 0;
+
+                dstSize = { newWidth, newHeight };
+                break;
+            default://默認右下
+                pos.x = wndSize.cx - pBgBmp->Size.cx;
+                pos.y = wndSize.cy - pBgBmp->Size.cy;
                 break;
             }
 
