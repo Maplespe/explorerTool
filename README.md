@@ -23,7 +23,7 @@ Custom Windows Explorer background image
 ```ini
 [image]
 random=true #指定图片是否随机显示 您必须放入至少两张图像
-posType=0 #图片显示位置 0=左上角 1=右上角 2=左下角 3=右下角 4=缩放并填充 5=縮放
+posType=0 #图片显示位置 0=左上角 1=右上角 2=左下角 3=右下角 4=居中 5=縮放 6=縮放並填充 ; 默認爲3, 右下角.
 imgAlpha=255 #图片的不透明度 范围0-255
 ```
 
