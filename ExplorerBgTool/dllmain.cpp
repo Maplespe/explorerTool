@@ -50,6 +50,9 @@ struct Config
     *  1 = Right top
     *  2 = Left bottom
     *  3 = Right bottom
+    *  4 = Center
+    *  5 = Zoom
+    *  6 = Zoom Fill
     */
     int imgPosMode = 0;                 //图片定位方式 Image position mode type
     bool isRandom = true;               //随机显示图片 Random pictures
@@ -336,18 +339,7 @@ int MyFillRect(HDC hDC, const RECT* lprc, HBRUSH hbr)
                 pos.x = (wndSize.cx - pBgBmp->Size.cx) >> 1;
                 pos.y = (wndSize.cy - pBgBmp->Size.cy) >> 1;
                 break;
-            case 5://隻有拉伸
-                static auto calcAspectRatio = [](int fromWidth, int fromHeight, int toWidthOrHeight, bool isWidth)
-                {
-                    if (isWidth) {
-                        return (int)round(((float)fromHeight * ((float)toWidthOrHeight / (float)fromWidth)));
-                    }
-                    else {
-                        return (int)round(((float)fromWidth * ((float)toWidthOrHeight / (float)fromHeight)));
-                    }
-                };
-
-                //直接拉伸
+            case 5://缩放
                 int newWidth = wndSize.cx;
                 int newHeight = wndSize.cy;
                 pos.x = 0;
@@ -355,7 +347,7 @@ int MyFillRect(HDC hDC, const RECT* lprc, HBRUSH hbr)
 
                 dstSize = { newWidth, newHeight };
                 break;
-            case 6://拉伸並填充
+            case 6://缩放并填充
                 static auto calcAspectRatio = [](int fromWidth, int fromHeight, int toWidthOrHeight, bool isWidth)
                 {
                     if (isWidth) {
