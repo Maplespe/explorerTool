@@ -340,43 +340,47 @@ int MyFillRect(HDC hDC, const RECT* lprc, HBRUSH hbr)
                 pos.y = (wndSize.cy - pBgBmp->Size.cy) >> 1;
                 break;
             case 5://缩放
-                int newWidth = wndSize.cx;
-                int newHeight = wndSize.cy;
-                pos.x = 0;
-                pos.y = 0;
+                  {
+                      int newWidth = wndSize.cx;
+                      int newHeight = wndSize.cy;
+                      pos.x = 0;
+                      pos.y = 0;
 
-                dstSize = { newWidth, newHeight };
-                break;
+                      dstSize = { newWidth, newHeight };
+                  }
+                  break;
             case 6://缩放并填充
-                static auto calcAspectRatio = [](int fromWidth, int fromHeight, int toWidthOrHeight, bool isWidth)
-                {
-                    if (isWidth) {
-                        return (int)round(((float)fromHeight * ((float)toWidthOrHeight / (float)fromWidth)));
-                    }
-                    else {
-                        return (int)round(((float)fromWidth * ((float)toWidthOrHeight / (float)fromHeight)));
-                    }
-                };
+                 {
+                     static auto calcAspectRatio = [](int fromWidth, int fromHeight, int toWidthOrHeight, bool isWidth)
+                     {
+                         if (isWidth) {
+                             return (int)round(((float)fromHeight * ((float)toWidthOrHeight / (float)fromWidth)));
+                         }
+                         else {
+                             return (int)round(((float)fromWidth * ((float)toWidthOrHeight / (float)fromHeight)));
+                         }
+                     };
 
-                //按高等比例拉伸
-                int newWidth = calcAspectRatio(pBgBmp->Size.cx, pBgBmp->Size.cy, wndSize.cy, false);
-                int newHeight = wndSize.cy;
+                     //按高等比例拉伸
+                     int newWidth = calcAspectRatio(pBgBmp->Size.cx, pBgBmp->Size.cy, wndSize.cy, false);
+                     int newHeight = wndSize.cy;
 
-                pos.x = newWidth - wndSize.cx;
-                pos.x /= 2;//居中
-                if (pos.x != 0) pos.x = -pos.x;
-                pos.y = 0;
+                     pos.x = newWidth - wndSize.cx;
+                     pos.x /= 2;//居中
+                     if (pos.x != 0) pos.x = -pos.x;
+                     pos.y = 0;
 
-                //按高不足以填充宽 按宽
-                if (newWidth < wndSize.cx) {
-                    newWidth = wndSize.cx;
-                    newHeight = calcAspectRatio(pBgBmp->Size.cx, pBgBmp->Size.cy, wndSize.cx, true);
-                    pos.x = 0;
-                    pos.y = newHeight - wndSize.cy;
-                    pos.y /= 2;//居中
-                    if (pos.y != 0) pos.y = -pos.y;
-                }
-                dstSize = { newWidth, newHeight };
+                     //按高不足以填充宽 按宽
+                     if (newWidth < wndSize.cx) {
+                         newWidth = wndSize.cx;
+                         newHeight = calcAspectRatio(pBgBmp->Size.cx, pBgBmp->Size.cy, wndSize.cx, true);
+                         pos.x = 0;
+                         pos.y = newHeight - wndSize.cy;
+                         pos.y /= 2;//居中
+                         if (pos.y != 0) pos.y = -pos.y;
+                     }
+                     dstSize = { newWidth, newHeight };
+                 }
                 break;
             default://默認右下
                 pos.x = wndSize.cx - pBgBmp->Size.cx;
