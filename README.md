@@ -26,7 +26,7 @@ posType=4
 ```
 ![image](https://github.com/Maplespe/explorerTool/blob/main/Screenshot/084016.jpg)
 
-> 居中 (Zoom and fill)
+> 缩放和填充 (Zoom and fill)
 
 ```ini
 posType=6
