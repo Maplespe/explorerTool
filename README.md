@@ -127,8 +127,7 @@ img=myimage.png
 
 [C:\Users\admin\Pictures\Camera Roll]
 img=mypic.png
-#
-保存文件后 刷新 立即生效(Takes effect as soon as the file is saved)
+#保存文件后 刷新 立即生效(Takes effect as soon as the file is saved)
 ```
 ## 注意事项 (Attention)
 图片仅支持`png、jpg`格式 请确保为有效的图片 否则可能引发崩溃!
