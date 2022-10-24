@@ -5,12 +5,21 @@ Let your Explorer have a custom background image for Windows 11 and WIndows 10
 * 支持多个图片随机
 * 可调整图片透明度
 * 可自定义图片显示位置
+* 支持单独为某个路径设置背景图片
 
 #
 * Customize Explorer ItemView background image
 * Supports random switching of multiple pictures
 * Adjustable picture alpha
 * Customizable image display position
+* Support setting background image for a path separately
+
+## 目录
+1. [预览 (Overview)](#预览-overview)
+2. [使用方法 (How to use)](#使用方法-how-to-use)
+3. [配置文件 (Config)](#配置文件-config)
+4. [自定义路径 (Custom)](#自定义路径-custom)
+5. [其他 (Other)](#其他-other)
 ## 预览 (Overview)
 ### Windows 11
 
@@ -77,6 +86,9 @@ You can modify some styles by modifying "`config.ini`"
 #指定图片是否随机显示 您必须放入至少两张图像
 #Specifies whether the image is displayed randomly, you need to put at least 2 images
 random=true
+#是否启用指定自定义文件夹的图片
+#Enable custom specified folder pictures
+custom=false
 #图片显示位置 0=左上角 1=右上角 2=左下角 3=右下角 4=居中 5=缩放 6=缩放并填充; 默认为3 右下角
 #Image display position
 #0=Left top 1=Right top 2=Left right 3=Right bottom 4=Center 5=Stretch 6=Zoom and fill
@@ -90,6 +102,34 @@ imgAlpha=255
 
 After modification you don't need to restart file explorer, just reopen the current window
 
+## 自定义路径 (Custom)
+示例 (Example)
+
+Config.ini
+```ini
+[image]
+custom=true
+
+#括号内填入路径 请先将图片放入Image文件夹然后 img= 指定Image文件夹里的文件名 是文件名不是完整路径!
+#Please put the picture in the Image folder first, and then img=specify the file name in the Image folder Is the file name, not the full path!
+#某些特殊文件夹路径是CLSID 例如:
+#Some special folder paths are CLSID For example:
+#此电脑 This PC
+#::{20D04FE0-3AEA-1069-A2D8-08002B30309D}
+#快速访问 Quick access
+#::{679F85CB-0220-4080-B29B-5540CC05AAB6}
+#网络 Network
+#::{F02C1A0D-BE21-4350-88B0-7367FC96EF3C}
+
+#示例 (Example)
+[::{20D04FE0-3AEA-1069-A2D8-08002B30309D}]
+img=myimage.png
+
+[C:\Users\admin\Pictures\Camera Roll]
+img=mypic.png
+#
+保存文件后 刷新 立即生效(Takes effect as soon as the file is saved)
+```
 ## 注意事项 (Attention)
 图片仅支持`png、jpg`格式 请确保为有效的图片 否则可能引发崩溃!
 

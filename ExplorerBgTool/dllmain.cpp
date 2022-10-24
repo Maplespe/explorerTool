@@ -44,6 +44,12 @@ struct MyData
 //First ThreadID
 std::unordered_map<DWORD, MyData> m_duiList;//dui句柄列表 dui handle list
 
+struct imgInfo
+{
+    std::wstring fileName;
+    BitmapGDI* bmp;
+};
+
 struct Config
 {
     /* 0 = Left top
@@ -56,8 +62,9 @@ struct Config
     */
     int imgPosMode = 0;                 //图片定位方式 Image position mode type
     bool isRandom = true;               //随机显示图片 Random pictures
+    bool isCustom = false;              //自定义文件夹图片
     BYTE imgAlpha = 255;                //图片透明度 Image alpha
-    std::vector<BitmapGDI*> imageList;  //背景图列表 background image list
+    std::vector<imgInfo> imageList;    //背景图列表 background image list
 } m_config;                             //配置信息 config
 
 #pragma endregion
@@ -88,9 +95,9 @@ BOOL APIENTRY DllMain( HMODULE hModule,
     }
     else if (ul_reason_for_call == DLL_PROCESS_DETACH)
     {
-        for (auto& bmp : m_config.imageList)
+        for (auto& info : m_config.imageList)
         {
-            delete bmp;
+            delete info.bmp;
         }
         m_config.imageList.clear();
         m_duiList.clear();
@@ -111,9 +118,9 @@ void LoadSettings(bool loadimg)
 
     //释放旧资源
     if (loadimg) {
-        for (auto& pBmp : m_config.imageList)
+        for (auto& info : m_config.imageList)
         {
-            delete pBmp;
+            delete info.bmp;
         }
         m_config.imageList.clear();
     }
@@ -121,6 +128,7 @@ void LoadSettings(bool loadimg)
     //加载配置 Load config
     std::wstring cfgPath = GetCurDllDir() + L"\\config.ini";
     m_config.isRandom = GetIniString(cfgPath, L"image", L"random") == L"true" ? true : false;
+    m_config.isCustom = GetIniString(cfgPath, L"image", L"custom") == L"true" ? true : false;
 
     //图片定位方式
     std::wstring str = GetIniString(cfgPath, L"image", L"posType");
@@ -159,14 +167,16 @@ void LoadSettings(bool loadimg)
             {
                 BitmapGDI* bmp = new BitmapGDI(fileList[i]);
                 if (bmp->src)
-                    m_config.imageList.push_back(bmp);
+                {
+                    m_config.imageList.push_back({ GetFileName(fileList[i]), bmp });
+                }
                 else
                     delete bmp;//图片加载失败 load failed
 
                 /*非随机 只加载一张
                 * Load only one image non randomly
                 */
-                if (!m_config.isRandom) break;
+                if (!m_config.isRandom && !m_config.isCustom) break;
             }
         }
         else {
@@ -213,6 +223,30 @@ void OnWindowLoad()
     LoadSettings(true);
 }
 
+/*
+* ShellLoader
+* 文件资源管理器页面加载完毕后会调用
+*/
+void OnDocComplete(std::wstring path, DWORD threadID)
+{
+    //std::wcout << L"path[" << threadID << L"] " << path << L"\n";
+    if (m_config.isCustom)
+    {
+        std::wstring fileName = GetIniString(GetCurDllDir() + L"\\config.ini", path, L"img");
+        if (fileName.empty())
+            return;
+        auto size = m_config.imageList.size();
+        for (size_t i = 0; i < size; i++)
+        {
+            if (m_config.imageList[i].fileName == fileName)
+            {
+                m_duiList[threadID].ImgIndex = i;
+                break;
+            }
+        }
+    }
+}
+
 HWND MyCreateWindowExW(
     DWORD     dwExStyle,
     LPCWSTR   lpClassName,
@@ -251,7 +285,10 @@ HWND MyCreateWindowExW(
             auto imgSize = m_config.imageList.size();
             if (m_config.isRandom && imgSize)
             {
-                data.ImgIndex = rand() % imgSize;
+                if (m_config.isRandom)
+                    data.ImgIndex = rand() % imgSize;
+                else
+                    data.ImgIndex = 0;
             }
             m_duiList[GetCurrentThreadId()] = data;
         }
@@ -313,7 +350,7 @@ int MyFillRect(HDC hDC, const RECT* lprc, HBRUSH hbr)
             SaveDC(hDC);
             IntersectClipRect(hDC, lprc->left, lprc->top, lprc->right, lprc->bottom);
 
-            BitmapGDI* pBgBmp = m_config.imageList[iter->second.ImgIndex];
+            BitmapGDI* pBgBmp = m_config.imageList[iter->second.ImgIndex].bmp;
 
             //计算图片位置 Calculate picture position
             POINT pos;

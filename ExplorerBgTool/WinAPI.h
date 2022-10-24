@@ -42,6 +42,9 @@ extern std::wstring GetIniString(std::wstring FilePath, std::wstring AppName, st
 /*枚举某目录下指定文件*/
 extern void EnumFiles(std::wstring path, std::wstring append, std::vector<std::wstring>& fileList);
 
+/*取文件名*/
+extern std::wstring GetFileName(std::wstring path);
+
 /*GDI Bitmap*/
 class BitmapGDI
 {

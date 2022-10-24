@@ -101,6 +101,13 @@ void EnumFiles(std::wstring path, std::wstring append, std::vector<std::wstring>
 	}
 }
 
+std::wstring GetFileName(std::wstring path)
+{
+	std::wstring::size_type iPos = path.find_last_of('\\') + 1;
+
+	return path.substr(iPos, path.length() - iPos).c_str();
+}
+
 BitmapGDI::BitmapGDI(std::wstring path)
 {
 	//这样加载是为了防止文件被占用
