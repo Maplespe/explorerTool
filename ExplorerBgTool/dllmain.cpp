@@ -36,10 +36,13 @@ ULONG_PTR m_gdiplusToken;           //GDI初始化标志 GDI Init flag
 
 struct MyData
 {
-    HWND hWnd = 0;
-    HDC hDC = 0;
+    struct data
+    {
+        HDC hdc = 0;
+        int imgIndex = 0;
+    };
+    std::unordered_map<HWND, data> duiList;
     SIZE size = { 0,0 };
-    int ImgIndex = 0;
 };
 //First ThreadID
 std::unordered_map<DWORD, MyData> m_duiList;//dui句柄列表 dui handle list
@@ -68,6 +71,21 @@ struct Config
 } m_config;                             //配置信息 config
 
 #pragma endregion
+
+template<typename T>
+HWND GetHWNDFromDUIList(T& list, HDC dc, MyData::data& data)
+{
+    for (auto& iter : list->second.duiList)
+    {
+        if (iter.second.hdc == dc)
+        {
+            data = iter.second;
+            return iter.first;
+        }
+    }
+    return 0;
+}
+
 
 extern bool InjectionEntryPoint();      //注入入口点
 extern void LoadSettings(bool loadimg); //加载dll设置
@@ -240,7 +258,9 @@ void OnDocComplete(std::wstring path, DWORD threadID)
         {
             if (m_config.imageList[i].fileName == fileName)
             {
-                m_duiList[threadID].ImgIndex = i;
+                auto iter = m_duiList[threadID].duiList.end();
+                iter--;
+                iter->second.imgIndex = i;
                 break;
             }
         }
@@ -280,17 +300,19 @@ HWND MyCreateWindowExW(
         if (GetWindowClassName(parent) == L"ShellTabWindowClass")
         {
             //记录到列表中 Add to list
-            MyData data;
-            data.hWnd = hWnd;
+            auto& node = m_duiList[GetCurrentThreadId()];
+
+            MyData::data data;
+            data.hdc = 0;
             auto imgSize = m_config.imageList.size();
             if (m_config.isRandom && imgSize)
             {
                 if (m_config.isRandom)
-                    data.ImgIndex = rand() % imgSize;
+                    data.imgIndex = rand() % imgSize;
                 else
-                    data.ImgIndex = 0;
+                    data.imgIndex = 0;
             }
-            m_duiList[GetCurrentThreadId()] = data;
+            node.duiList.insert(std::make_pair(hWnd, data));
         }
     }
     return hWnd;
@@ -302,8 +324,13 @@ BOOL MyDestroyWindow(HWND hWnd)
     auto iter = m_duiList.find(GetCurrentThreadId());
     if (iter != m_duiList.end())
     {
-        if (iter->second.hWnd == hWnd)
-            m_duiList.erase(iter);
+        auto __iter = iter->second.duiList.find(hWnd);
+        if (__iter != iter->second.duiList.end()) {
+            iter->second.duiList.erase(__iter);
+            //子页面已经全部关闭 释放窗口列表node
+            if (iter->second.duiList.size() == 0)
+                m_duiList.erase(iter);
+        }
     }
     return _DestroyWindow_(hWnd);
 }
@@ -316,11 +343,10 @@ HDC MyBeginPaint(HWND hWnd, LPPAINTSTRUCT lpPaint)
     auto iter = m_duiList.find(GetCurrentThreadId());
 
     if (iter != m_duiList.end()) {
-        if (iter->second.hWnd == hWnd)
+        auto __iter = iter->second.duiList.find(hWnd);
+        if (__iter != iter->second.duiList.end())
         {
-            //Log(L"Begin");
-            //记录到列表 Record values to list
-            iter->second.hDC = hDC;
+            __iter->second.hdc = hDC;
         }
     }
     return hDC;
@@ -331,11 +357,13 @@ int MyFillRect(HDC hDC, const RECT* lprc, HBRUSH hbr)
     int ret = _FillRect_(hDC, lprc, hbr);
 
     auto iter = m_duiList.find(GetCurrentThreadId());
-    if (iter != m_duiList.end()) {
-        if (iter->second.hDC == hDC && m_config.imageList.size())
+    if (iter != m_duiList.end() && m_config.imageList.size()) {
+        MyData::data _data;
+        HWND hWnd = GetHWNDFromDUIList(iter, hDC, _data);
+        if (hWnd)
         {
             RECT pRc;
-            GetWindowRect(iter->second.hWnd, &pRc);
+            GetWindowRect(hWnd, &pRc);
             SIZE wndSize = { pRc.right - pRc.left, pRc.bottom - pRc.top };
 
             /*因图片定位方式不同 如果窗口大小改变 需要全体重绘 否则有残留
@@ -343,14 +371,14 @@ int MyFillRect(HDC hDC, const RECT* lprc, HBRUSH hbr)
             * if the window size changes, you need to redraw, otherwise there will be residues*/
             if ((iter->second.size.cx != wndSize.cx || iter->second.size.cy != wndSize.cy)
                 && m_config.imgPosMode != 0) {
-                InvalidateRect(iter->second.hWnd, 0, TRUE);
+                InvalidateRect(hWnd, 0, TRUE);
             }
 
             //裁剪矩形 Clip rect
             SaveDC(hDC);
             IntersectClipRect(hDC, lprc->left, lprc->top, lprc->right, lprc->bottom);
 
-            BitmapGDI* pBgBmp = m_config.imageList[iter->second.ImgIndex].bmp;
+            BitmapGDI* pBgBmp = m_config.imageList[_data.imgIndex].bmp;
 
             //计算图片位置 Calculate picture position
             POINT pos;
@@ -447,8 +475,11 @@ HDC MyCreateCompatibleDC(HDC hDC)
 
     auto iter = m_duiList.find(GetCurrentThreadId());
     if (iter != m_duiList.end()) {
-        if (iter->second.hDC == hDC)
-            iter->second.hDC = retDC;
+        auto __iter = iter->second.duiList.find(WindowFromDC(hDC));
+        if (__iter != iter->second.duiList.end()) {
+            __iter->second.hdc = retDC;
+            return retDC;
+        }
     }
     return retDC;
 }

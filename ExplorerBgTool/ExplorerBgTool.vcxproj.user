@@ -14,5 +14,13 @@
     <LocalDebuggerCommandArguments>
     </LocalDebuggerCommandArguments>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+    <RemoteDebuggerCommand>
+    </RemoteDebuggerCommand>
+    <RemoteDebuggerWorkingDirectory>
+    </RemoteDebuggerWorkingDirectory>
+    <RemoteDebuggerServerName>
+    </RemoteDebuggerServerName>
+    <RemoteDebuggerConnection>RemoteWithoutAuthentication</RemoteDebuggerConnection>
+    <RemoteDebuggerAttach>true</RemoteDebuggerAttach>
   </PropertyGroup>
 </Project>
