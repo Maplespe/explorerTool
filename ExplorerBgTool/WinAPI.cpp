@@ -1,4 +1,4 @@
-/*
+﻿/*
 * WinAPI声明
 *
 * Author: Maple
@@ -108,6 +108,24 @@ std::wstring GetFileName(std::wstring path)
 	return path.substr(iPos, path.length() - iPos).c_str();
 }
 
+size_t GetFileSize(std::wstring path)
+{
+	WIN32_FILE_ATTRIBUTE_DATA fileInfo;
+
+	// 获取文件信息
+	if (!GetFileAttributesExW(path.c_str(), GetFileExInfoStandard, &fileInfo))
+	{
+		return -1; // 获取文件信息失败
+	}
+
+	// 计算文件大小
+	ULARGE_INTEGER fileSize;
+	fileSize.HighPart = fileInfo.nFileSizeHigh;
+	fileSize.LowPart = fileInfo.nFileSizeLow;
+
+	return fileSize.QuadPart;
+}
+
 BitmapGDI::BitmapGDI(std::wstring path)
 {
 	//这样加载是为了防止文件被占用
@@ -140,8 +158,7 @@ BitmapGDI::BitmapGDI(std::wstring path)
 
 BitmapGDI::~BitmapGDI()
 {
-	if (src)
-		delete src;
+delete src;
 	if (pMem)
 		DeleteDC(pMem);
 	if (pBmp)

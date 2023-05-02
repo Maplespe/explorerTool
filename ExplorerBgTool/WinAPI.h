@@ -1,5 +1,5 @@
-/*
-* WinAPIÉùÃ÷
+ï»¿/*
+* WinAPIå£°æ˜
 *
 * Author: Maple
 * date: 2021-7-13 Create
@@ -12,38 +12,41 @@
 #include <gdiplus.h>
 #include <vector>
 
-/*µ÷ÊÔÊä³ö
+/*è°ƒè¯•è¾“å‡º
 * Debug output
 */
 extern void Log(std::wstring log);
 extern void Log(int log);
 
-/*»ñÈ¡µ±Ç°dllËùÔÚÄ¿Â¼
+/*è·å–å½“å‰dllæ‰€åœ¨ç›®å½•
 * Get current directory
 */
 extern std::wstring GetCurDllDir();
 
-/*ÅĞ¶ÏÎÄ¼şÊÇ·ñ´æÔÚ
+/*åˆ¤æ–­æ–‡ä»¶æ˜¯å¦å­˜åœ¨
 * file exist
 */
 extern bool FileIsExist(std::wstring FilePath);
 
-/*»ñÈ¡´°¿Ú±êÌâ*/
+/*è·å–çª—å£æ ‡é¢˜*/
 extern std::wstring GetWindowTitle(HWND hWnd);
 
-/*»ñÈ¡´°¿ÚÀàÃû*/
+/*è·å–çª—å£ç±»å*/
 extern std::wstring GetWindowClassName(HWND hWnd);
 
-/*¶ÁÈ¡ÅäÖÃÎÄ¼şÄÚÈİ
+/*è¯»å–é…ç½®æ–‡ä»¶å†…å®¹
 * Read config file
 */
 extern std::wstring GetIniString(std::wstring FilePath, std::wstring AppName, std::wstring KeyName);
 
-/*Ã¶¾ÙÄ³Ä¿Â¼ÏÂÖ¸¶¨ÎÄ¼ş*/
+/*æšä¸¾æŸç›®å½•ä¸‹æŒ‡å®šæ–‡ä»¶*/
 extern void EnumFiles(std::wstring path, std::wstring append, std::vector<std::wstring>& fileList);
 
-/*È¡ÎÄ¼şÃû*/
+/*å–æ–‡ä»¶å*/
 extern std::wstring GetFileName(std::wstring path);
+
+/*å–æ–‡ä»¶å°ºå¯¸*/
+extern size_t GetFileSize(std::wstring path);
 
 /*GDI Bitmap*/
 class BitmapGDI
@@ -54,6 +57,6 @@ public:
 
 	HDC pMem = 0;
 	HBITMAP pBmp = 0;
-	SIZE Size;
+	SIZE Size{};
 	Gdiplus::Bitmap* src = 0;
 };

@@ -1,4 +1,4 @@
-/*
+﻿/*
 * 文件资源管理器背景工具扩展
 * 
 * Author: Maple
@@ -6,10 +6,14 @@
 * Copyright winmoes.com
 */
 #include <string>
+#include <utility>
 #include <vector>
 #include <unordered_map>
 #include <algorithm>
-#include <time.h>
+#include <ctime>
+#include <random>
+#include <iostream>
+#include <mutex>
 
 //GDI 相关 Using GDI
 #include <comdef.h>
@@ -25,6 +29,54 @@
 #pragma comment(lib, "Msimg32.lib")  
 
 using namespace Gdiplus;
+
+template<typename T, typename T1>
+class hashMap
+{
+public:
+    hashMap() = default;
+
+    auto find(T _name)
+    {
+        std::unique_lock<std::mutex> lock(m_mutex);
+        return m_map.find(_name);
+    }
+
+    template <typename Args>
+    auto erase(Args&& _it)
+    {
+        std::unique_lock<std::mutex> lock(m_mutex);
+        return m_map.erase(_it);
+    }
+
+    template <typename Args>
+    auto insert(Args&& _value)
+    {
+        std::unique_lock<std::mutex> lock(m_mutex);
+        return m_map.insert(_value);
+    }
+
+    auto& operator[](const T& _value)
+    {
+        return m_map[_value];
+    }
+
+    auto clear()
+    {
+        std::unique_lock<std::mutex> lock(m_mutex);
+        m_map.clear();
+    }
+
+    auto end()
+    {
+        std::unique_lock<std::mutex> lock(m_mutex);
+        return m_map.end();
+    }
+
+private:
+    std::mutex m_mutex;
+    std::unordered_map<T, T1> m_map;
+};
 
 //全局变量
 #pragma region GlobalVariable
@@ -45,11 +97,12 @@ struct MyData
     SIZE size = { 0,0 };
 };
 //First ThreadID
-std::unordered_map<DWORD, MyData> m_duiList;//dui句柄列表 dui handle list
+hashMap<DWORD, MyData> m_duiList;   //dui句柄列表 dui handle list
 
 struct imgInfo
 {
     std::wstring fileName;
+    size_t fileSize = 0;
     BitmapGDI* bmp;
 };
 
@@ -66,9 +119,17 @@ struct Config
     int imgPosMode = 0;                 //图片定位方式 Image position mode type
     bool isRandom = true;               //随机显示图片 Random pictures
     bool isCustom = false;              //自定义文件夹图片
+    bool noerror = false;               //不显示错误
     BYTE imgAlpha = 255;                //图片透明度 Image alpha
-    std::vector<imgInfo> imageList;    //背景图列表 background image list
+    std::vector<imgInfo> imageList;     //背景图列表 background image list
 } m_config;                             //配置信息 config
+
+//mt随机数
+std::random_device rd;
+std::mt19937 gen(rd());
+std::uniform_int_distribution<> dis(0, INT_MAX);
+
+#define M_RAND dis(gen)
 
 #pragma endregion
 
@@ -90,6 +151,43 @@ HWND GetHWNDFromDUIList(T& list, HDC dc, MyData::data& data)
 extern bool InjectionEntryPoint();      //注入入口点
 extern void LoadSettings(bool loadimg); //加载dll设置
 
+bool ShouldLoad()
+{
+    wchar_t pName[MAX_PATH];
+    GetModuleFileNameW(NULL, pName, MAX_PATH);
+    //进程名转小写
+    std::wstring path = std::wstring(pName);
+    if (path.length() > 12)
+    {
+        std::wstring name = path.substr(path.length() - 12, 12);
+        std::transform(name.begin(), name.end(), name.begin(), ::tolower);
+        if (name == L"explorer.exe")
+            return true;
+    }
+    if (GetIniString(GetCurDllDir() + L"\\config.ini", L"load", L"folderExt") == L"true")
+    {
+        if (GetModuleHandleW(L"SettingSyncHost.exe")
+            || GetModuleHandleW(L"SkyDrive.exe")
+            || GetModuleHandleW(L"FileManager.exe")
+            || GetModuleHandleW(L"vmtoolsd.exe")
+            || GetModuleHandleW(L"svchost.exe")
+            || GetModuleHandleW(L"SearchIndexer.exe")
+            || GetModuleHandleW(L"WSHost.exe")
+            || GetModuleHandleW(L"wmpnetwk.exe")
+            || GetModuleHandleW(L"svchost.exe")
+            || GetModuleHandleW(L"dllhost.exe")
+            || GetModuleHandleW(L"spoolsv.exe")
+            || GetModuleHandleW(L"PhoneExperienceHost.exe")
+            )
+        {
+            return false;
+        }
+        return true;
+    }
+
+    return GetModuleHandleW(L"regsvr32.exe");
+}
+
 BOOL APIENTRY DllMain( HMODULE hModule,
                        DWORD  ul_reason_for_call,
                        LPVOID lpReserved
@@ -99,19 +197,9 @@ BOOL APIENTRY DllMain( HMODULE hModule,
         g_hModule = hModule;
         DisableThreadLibraryCalls(hModule);
 
-        //防止别的程序意外加载
-        wchar_t pName[MAX_PATH];
-        GetModuleFileNameW(NULL, pName, MAX_PATH);
-
-        //进程名转小写
-        std::wstring path = std::wstring(pName);
-        std::wstring name = path.substr(path.length() - 12, 12);
-        std::transform(name.begin(), name.end(), name.begin(), ::tolower);
-
-        if (name == L"explorer.exe")
-            InjectionEntryPoint();
+        return ShouldLoad();
     }
-    else if (ul_reason_for_call == DLL_PROCESS_DETACH)
+	if (ul_reason_for_call == DLL_PROCESS_DETACH)
     {
         for (auto& info : m_config.imageList)
         {
@@ -123,41 +211,24 @@ BOOL APIENTRY DllMain( HMODULE hModule,
     return TRUE;
 }
 
-bool InjectionEntryPoint()
-{
-    //设置随机数种子
-    srand((int)time(0));
-
-    return true;
-}
-
 void LoadSettings(bool loadimg)
 {
-
-    //释放旧资源
-    if (loadimg) {
-        for (auto& info : m_config.imageList)
-        {
-            delete info.bmp;
-        }
-        m_config.imageList.clear();
-    }
-
     //加载配置 Load config
     std::wstring cfgPath = GetCurDllDir() + L"\\config.ini";
     m_config.isRandom = GetIniString(cfgPath, L"image", L"random") == L"true" ? true : false;
     m_config.isCustom = GetIniString(cfgPath, L"image", L"custom") == L"true" ? true : false;
+    m_config.noerror = GetIniString(cfgPath, L"load", L"noerror") == L"true" ? true : false;
 
     //图片定位方式
     std::wstring str = GetIniString(cfgPath, L"image", L"posType");
-    if (str == L"") str = L"0";
+    if (str.empty()) str = L"0";
     m_config.imgPosMode = std::stoi(str);
     if (m_config.imgPosMode < 0 || m_config.imgPosMode > 6)
         m_config.imgPosMode = 3;
 
     //图片透明度
     str = GetIniString(cfgPath, L"image", L"imgAlpha");
-    if (str == L"")
+    if (str.empty())
         m_config.imgAlpha = 255;
     else
     {
@@ -176,30 +247,55 @@ void LoadSettings(bool loadimg)
             EnumFiles(imgPath, L"*.png", fileList);
             EnumFiles(imgPath, L"*.jpg", fileList);
 
-            if (fileList.size() == 0) {
+            if (fileList.empty() && !m_config.noerror) {
                 MessageBoxW(0, L"文件资源管理器背景目录没有文件，因此扩展不会有任何效果.", L"缺少图片文件", MB_ICONERROR);
                 return;
             }
 
-            for (size_t i = 0; i < fileList.size(); i++)
+            //释放旧资源
+            bool freeImg = false;
+            if (fileList.size() != m_config.imageList.size())
+                freeImg = true;
+            else
             {
-                BitmapGDI* bmp = new BitmapGDI(fileList[i]);
-                if (bmp->src)
+                for (size_t i = 0; i < fileList.size(); i++)
                 {
-                    m_config.imageList.push_back({ GetFileName(fileList[i]), bmp });
+                    auto& file = fileList[i];
+                    auto& img = m_config.imageList[i];
+                    if (GetFileSize(file) != img.fileSize || GetFileName(file) != img.fileName)
+                    {
+                        freeImg = true;
+                        break;
+                    }
                 }
-                else
-                    delete bmp;//图片加载失败 load failed
+            }
+            if(freeImg)
+            {
+                for (auto& info : m_config.imageList)
+                {
+                    delete info.bmp;
+                }
+                m_config.imageList.clear();
 
-                /*非随机 只加载一张
-                * Load only one image non randomly
-                */
-                if (!m_config.isRandom && !m_config.isCustom) break;
+                for (auto& i : fileList)
+                {
+                    BitmapGDI* bmp = new BitmapGDI(i);
+                    if (bmp->src)
+                    {
+                        m_config.imageList.push_back({ GetFileName(i), GetFileSize(i), bmp });
+                    }
+                    else
+                        delete bmp;//图片加载失败 load failed
+
+                    /*非随机 只加载一张
+                    * Load only one image non randomly
+                    */
+                    if (!m_config.isRandom && !m_config.isCustom) break;
+                }
             }
         }
-        else {
+        else if(!m_config.noerror) {
             MessageBoxW(0, L"文件资源管理器背景目录不存在，因此扩展不会有任何效果.", L"缺少图片目录", MB_ICONERROR);
-            return;
         }
     }
 }
@@ -221,6 +317,13 @@ void OnWindowLoad()
         GdiplusStartupInput StartupInput;
         int ret = GdiplusStartup(&m_gdiplusToken, &StartupInput, NULL);
 
+#ifdef _DEBUG
+        AllocConsole();
+        FILE* pOut = NULL;
+        freopen_s(&pOut, "conout$", "w", stdout);
+        freopen_s(&pOut, "conout$", "w", stderr);
+        std::wcout.imbue(std::locale("chs"));
+#endif
         //创建钩子 CreateHook
         if (MH_Initialize() == MH_OK)
         {
@@ -231,7 +334,7 @@ void OnWindowLoad()
             CreateMHook(CreateCompatibleDC, MyCreateCompatibleDC, _CreateCompatibleDC_, 5);
             MH_EnableHook(MH_ALL_HOOKS);
         }
-        else
+        else if(GetIniString(GetCurDllDir() + L"\\config.ini", L"load", L"noerror") == L"false")
         {
             MessageBoxW(0, L"Failed to initialize disassembly!\nSuspected duplicate load extension", L"MTweaker Error", MB_ICONERROR | MB_OK);
             FreeLibraryAndExitThread(g_hModule, 0);
@@ -250,7 +353,7 @@ void OnDocComplete(std::wstring path, DWORD threadID)
     //std::wcout << L"path[" << threadID << L"] " << path << L"\n";
     if (m_config.isCustom)
     {
-        std::wstring fileName = GetIniString(GetCurDllDir() + L"\\config.ini", path, L"img");
+        std::wstring fileName = GetIniString(GetCurDllDir() + L"\\config.ini", std::move(path), L"img");
         if (fileName.empty())
             return;
         auto size = m_config.imageList.size();
@@ -259,7 +362,7 @@ void OnDocComplete(std::wstring path, DWORD threadID)
             if (m_config.imageList[i].fileName == fileName)
             {
                 auto iter = m_duiList[threadID].duiList.end();
-                iter--;
+                --iter;
                 iter->second.imgIndex = i;
                 break;
             }
@@ -297,7 +400,8 @@ HWND MyCreateWindowExW(
     {
         //继续查找父级 Continue to find parent
         HWND parent = GetParent(hWndParent);
-        if (GetWindowClassName(parent) == L"ShellTabWindowClass")
+        auto clsname = GetWindowClassName(parent);
+        if (clsname == L"ShellTabWindowClass" || clsname == L"#32770")
         {
             //记录到列表中 Add to list
             auto& node = m_duiList[GetCurrentThreadId()];
@@ -308,7 +412,7 @@ HWND MyCreateWindowExW(
             if (m_config.isRandom && imgSize)
             {
                 if (m_config.isRandom)
-                    data.imgIndex = rand() % imgSize;
+                    data.imgIndex = M_RAND % imgSize;
                 else
                     data.imgIndex = 0;
             }
@@ -328,7 +432,7 @@ BOOL MyDestroyWindow(HWND hWnd)
         if (__iter != iter->second.duiList.end()) {
             iter->second.duiList.erase(__iter);
             //子页面已经全部关闭 释放窗口列表node
-            if (iter->second.duiList.size() == 0)
+            if (iter->second.duiList.empty())
                 m_duiList.erase(iter);
         }
     }
@@ -357,7 +461,7 @@ int MyFillRect(HDC hDC, const RECT* lprc, HBRUSH hbr)
     int ret = _FillRect_(hDC, lprc, hbr);
 
     auto iter = m_duiList.find(GetCurrentThreadId());
-    if (iter != m_duiList.end() && m_config.imageList.size()) {
+    if (iter != m_duiList.end() && !m_config.imageList.empty()) {
         MyData::data _data;
         HWND hWnd = GetHWNDFromDUIList(iter, hDC, _data);
         if (hWnd)
