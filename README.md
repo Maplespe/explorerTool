@@ -48,6 +48,15 @@ imgAlpha=140
 posType=3
 ```
 ![image](https://github.com/Maplespe/explorerTool/blob/main/Screenshot/085552.jpg)
+
+### 文件对话框 (File Dialog)
+```ini
+[load]
+folderExt=true
+...
+```
+![image](https://github.com/Maplespe/explorerTool/blob/main/Screenshot/163113.jpg)
+
 ## 使用方法 (How to use)
 从Release页面下载最新版本压缩包并解压
 
@@ -82,6 +91,13 @@ You can also use the command to register or uninstall
 
 You can modify some styles by modifying "`config.ini`"
 ```ini
+[load]
+#指定是否在文件对话框中启用
+#Specify whether or not to enable in the file dialog.
+folderExt=false
+#指定是否忽略错误(即出现错误不显示错误弹窗)
+#Specify whether or not to ignore errors (i.e. not show error popups when errors occur).
+noerror=false
 [image]
 #指定图片是否随机显示 您必须放入至少两张图像
 #Specifies whether the image is displayed randomly, you need to put at least 2 images
