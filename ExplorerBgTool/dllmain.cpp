@@ -121,6 +121,7 @@ struct Config
     bool isCustom = false;              //自定义文件夹图片
     bool noerror = false;               //不显示错误
     BYTE imgAlpha = 255;                //图片透明度 Image alpha
+    std::wstring folder;                //自定义图片路径
     std::vector<imgInfo> imageList;     //背景图列表 background image list
 } m_config;                             //配置信息 config
 
@@ -218,6 +219,7 @@ void LoadSettings(bool loadimg)
     m_config.isRandom = GetIniString(cfgPath, L"image", L"random") == L"true" ? true : false;
     m_config.isCustom = GetIniString(cfgPath, L"image", L"custom") == L"true" ? true : false;
     m_config.noerror = GetIniString(cfgPath, L"load", L"noerror") == L"true" ? true : false;
+    m_config.folder = GetIniString(cfgPath, L"image", L"folder");
 
     //图片定位方式
     std::wstring str = GetIniString(cfgPath, L"image", L"posType");
@@ -240,7 +242,9 @@ void LoadSettings(bool loadimg)
 
     //加载图像 Load Image
     if (loadimg) {
-        std::wstring imgPath = GetCurDllDir() + L"\\Image";
+        std::wstring imgPath = m_config.folder;
+        if(imgPath.empty())
+            imgPath = GetCurDllDir() + L"\\Image";
         if (FileIsExist(imgPath))
         {
             std::vector<std::wstring> fileList;
@@ -255,7 +259,10 @@ void LoadSettings(bool loadimg)
             //释放旧资源
             bool freeImg = false;
             if (fileList.size() != m_config.imageList.size())
-                freeImg = true;
+            {
+                if(!(m_config.imageList.size() == 1 && !m_config.isRandom))
+					freeImg = true;
+            }
             else
             {
                 for (size_t i = 0; i < fileList.size(); i++)
@@ -368,6 +375,7 @@ void OnDocComplete(std::wstring path, DWORD threadID)
             }
         }
     }
+
 }
 
 HWND MyCreateWindowExW(

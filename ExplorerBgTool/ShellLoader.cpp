@@ -199,7 +199,7 @@ STDAPI DllRegisterServer()
 		+ CLSID_SHELL_BHO_STR).c_str(), 0, NULL, 0, KEY_ALL_ACCESS, NULL, &hkey, NULL) != ERROR_SUCCESS)
 		return SELFREG_E_CLASS;
 
-	value = 32;
+	value = 255;
 	RegSetValueExW(hkey, L"DriveMask", 0, REG_DWORD, (const BYTE*)&value, sizeof(DWORD));
 	RegCloseKey(hkey);
 	return S_OK;

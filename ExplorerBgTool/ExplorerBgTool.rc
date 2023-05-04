@@ -25,8 +25,8 @@ LANGUAGE LANG_CHINESE, SUBLANG_CHINESE_SIMPLIFIED
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,0,9,0
- PRODUCTVERSION 1,0,9,9
+ FILEVERSION 1,1,0,0
+ PRODUCTVERSION 1,1,0,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -43,12 +43,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "ExplorerTool"
             VALUE "FileDescription", "https://github.com/Maplespe/explorerTool/"
-            VALUE "FileVersion", "1.0.9.0"
+            VALUE "FileVersion", "1.1.0.0"
             VALUE "InternalName", "ExplorerTool.dll"
             VALUE "LegalCopyright", "Copyright (C) Maplespe 2023"
             VALUE "OriginalFilename", "ExplorerTool.dll"
             VALUE "ProductName", "ExplorerTool"
-            VALUE "ProductVersion", "1.0.9.9"
+            VALUE "ProductVersion", "1.1.0.0"
         END
     END
     BLOCK "VarFileInfo"
