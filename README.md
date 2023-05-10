@@ -112,6 +112,9 @@ posType=0
 #图片的不透明度 范围0-255
 #Alpha 0-255 of image
 imgAlpha=255
+#自定义图片目录绝对路径 (为空则默认 ./image)
+#Custom image folder absolute path (empty defaults to . /image)
+folder=
 ```
 
 修改后 您无需重启文件资源管理器 只需重新打开当前窗口即可
