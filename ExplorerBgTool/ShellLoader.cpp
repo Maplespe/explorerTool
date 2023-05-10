@@ -29,7 +29,7 @@ CObjectWithSite::~CObjectWithSite()
 STDMETHODIMP CObjectWithSite::QueryInterface(REFIID riid, void** ppv)
 {
 	if (riid == IID_IUnknown)
-		*ppv = static_cast<CObjectWithSite*>(this);
+		*ppv = static_cast<IUnknown*>(this);
 	else if (riid == IID_IObjectWithSite)
 		*ppv = static_cast<IObjectWithSite*>(this);
 	else

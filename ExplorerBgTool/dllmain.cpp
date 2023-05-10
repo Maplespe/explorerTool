@@ -83,6 +83,7 @@ private:
 
 HMODULE g_hModule = NULL;           //全局模块句柄 Global module handle
 bool m_isInitHook = false;          //Hook初始化标志 Hook init flag
+bool m_isRefreshCfg = false;
 
 ULONG_PTR m_gdiplusToken;           //GDI初始化标志 GDI Init flag
 
@@ -179,6 +180,8 @@ bool ShouldLoad()
             || GetModuleHandleW(L"dllhost.exe")
             || GetModuleHandleW(L"spoolsv.exe")
             || GetModuleHandleW(L"PhoneExperienceHost.exe")
+            || GetModuleHandleW(L"RadeonSoftware.exe")
+            || GetModuleHandleW(L"usysdiag.exe")
             )
         {
             return false;
@@ -197,7 +200,6 @@ BOOL APIENTRY DllMain( HMODULE hModule,
     if (ul_reason_for_call == DLL_PROCESS_ATTACH && !g_hModule) {
         g_hModule = hModule;
         DisableThreadLibraryCalls(hModule);
-
         return ShouldLoad();
     }
 	if (ul_reason_for_call == DLL_PROCESS_DETACH)
@@ -214,6 +216,11 @@ BOOL APIENTRY DllMain( HMODULE hModule,
 
 void LoadSettings(bool loadimg)
 {
+    if (m_isRefreshCfg)
+        return;
+
+    m_isRefreshCfg = true;
+
     //加载配置 Load config
     std::wstring cfgPath = GetCurDllDir() + L"\\config.ini";
     m_config.isRandom = GetIniString(cfgPath, L"image", L"random") == L"true" ? true : false;
@@ -320,6 +327,7 @@ void OnWindowLoad()
     //在开机的时候系统就会加载此动态库 那时候启用HOOK是会失败的 等创建窗口的时候再初始化HOOK
     if (!m_isInitHook)
     {
+        CoInitialize(nullptr);
         //初始化 Gdiplus Init GdiPlus
         GdiplusStartupInput StartupInput;
         int ret = GdiplusStartup(&m_gdiplusToken, &StartupInput, NULL);
@@ -441,7 +449,10 @@ BOOL MyDestroyWindow(HWND hWnd)
             iter->second.duiList.erase(__iter);
             //子页面已经全部关闭 释放窗口列表node
             if (iter->second.duiList.empty())
+            {
+                m_isRefreshCfg = false;
                 m_duiList.erase(iter);
+            }
         }
     }
     return _DestroyWindow_(hWnd);
