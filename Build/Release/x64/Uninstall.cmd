@@ -1,11 +1,11 @@
 @ECHO OFF
 
-%1 mshta vbscript:CreateObject("Shell.Application").ShellExecute("cmd.exe","/c %~s0 ::","","runas",1)(window.close)&&exit
+%1 mshta vbscript:CreateObject("Shell.Application").ShellExecute("cmd.exe","/c ""%~s0"" ::","","runas",1)(window.close)&&exit
 cd /d "%~dp0"
 
 regsvr32 /u "%~dp0ExplorerBgTool.dll"
 taskkill /f /im explorer.exe & start explorer.exe
 
-echo ×é¼þ¿ÉÄÜ»á±»ÆäËû½ø³Ì¼ÓÔØ ÈçÎÞ·¨É¾³ýÇëÖØÆô¼ÆËã»úÔÙÊÔ.
+echo ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ü»á±»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ì¼ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Þ·ï¿½É¾ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½.
 echo The dll may be loaded by other processes. If you cannot delete it, please restart your computer and try again.
 pause
