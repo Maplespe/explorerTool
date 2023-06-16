@@ -6,6 +6,6 @@ cd /d "%~dp0"
 regsvr32 /u "%~dp0ExplorerBgTool.dll"
 taskkill /f /im explorer.exe & start explorer.exe
 
-echo ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ü»á±»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ì¼ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ş·ï¿½É¾ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½.
+echo ×é¼ş¿ÉÄÜ»á±»ÆäËû½ø³Ì¼ÓÔØ ÈçÎŞ·¨É¾³ıÇëÖØÆô¼ÆËã»úÔÙÊÔ.
 echo The dll may be loaded by other processes. If you cannot delete it, please restart your computer and try again.
 pause
